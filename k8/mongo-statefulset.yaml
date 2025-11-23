@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+spec:
+  # service name and selector facilitate a stable/consistent network identifier
+  serviceName: mongo
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:4.4.18
+          # Requests is a weighted feature that helps with load balancing by assigning a weight for requests
+          # services with heavier weights get higher priorities 
+          # limits are upper limits for resources requests can use
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          args: 
+            - "--bind_ip_all"
+          ports:
+          - name: mongo
+            containerPort: 27017
+          
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          # setting path for pod volumes to mount
+          volumeMounts:
+          - name: mongo-data
+            mountPath: /data/db
+
+
+  # controls the path of any volume mounts
+  # https://spot.io/resources/kubernetes-autoscaling/kubernetes-statefulsets-scaling-managing-persistent-apps/
+  # VCT (volumeClaimTemplates) allows me to create a volume for each kubernetes pod 
+  # and control things like permisssions 
+  volumeClaimTemplates:
+    - metadata:
+        name: mongo-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 2Gi
+
+
+
